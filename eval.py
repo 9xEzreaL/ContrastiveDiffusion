@@ -1,7 +1,7 @@
 import argparse
 from cleanfid import fid
-from core.base_dataset import BaseDataset
-from models.metric import inception_score
+from core.base_dataset import BaseDataset, PainBaseDataset
+from models.metric import inception_score, ssim_score, lpips_score
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -12,7 +12,15 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     fid_score = fid.compute_fid(args.src, args.dst)
-    is_mean, is_std = inception_score(BaseDataset(args.dst), cuda=True, batch_size=8, resize=True, splits=10)
-    
     print('FID: {}'.format(fid_score))
+
+    is_mean, is_std = inception_score(PainBaseDataset(args.dst), cuda=True, batch_size=8, resize=True, splits=10)
     print('IS:{} {}'.format(is_mean, is_std))
+
+    ssim_score, ms_ssim_score = ssim_score(PainBaseDataset(args.src), PainBaseDataset(args.dst))
+    print('SSIM score: {}, MS_SSIM score: {}'.format(ssim_score, ms_ssim_score))
+
+    lpips_score = lpips_score(PainBaseDataset(args.src), PainBaseDataset(args.dst))
+    print('LPIPS score: {}'.format(lpips_score))
+
+#

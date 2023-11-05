@@ -30,7 +30,7 @@ def main_worker(gpu, ngpus_per_node, opt):
 
     ''' set logger '''
     phase_logger = InfoLogger(opt)
-    phase_writer = VisualWriter(opt, phase_logger)  
+    phase_writer = VisualWriter(opt, phase_logger)
     phase_logger.info('Create the log file in directory {}.\n'.format(opt['path']['experiments_root']))
 
     '''set networks and dataset'''
@@ -53,11 +53,13 @@ def main_worker(gpu, ngpus_per_node, opt):
     )
 
     phase_logger.info('Begin model {}.'.format(opt['phase']))
+    
     try:
-        if opt['phase'] == 'train':
-            model.train()
-        else:
-            model.test()
+        for running_time in range(opt["running_times"]):
+            if opt['phase'] == 'train':
+                model.train()
+            else:
+                model.test(running_time)
     finally:
         phase_writer.close()
         
@@ -70,10 +72,11 @@ if __name__ == '__main__':
     parser.add_argument('-gpu', '--gpu_ids', type=str, default=None)
     parser.add_argument('-d', '--debug', action='store_true')
     parser.add_argument('-P', '--port', default='21012', type=str)
-
+    
     ''' parser configs '''
     args = parser.parse_args()
     opt = Praser.parse(args)
+    opt["running_times"] = 1
     
     ''' cuda devices '''
     gpu_str = ','.join(str(x) for x in opt['gpu_ids'])
@@ -85,8 +88,8 @@ if __name__ == '__main__':
     if opt['distributed']:
         ngpus_per_node = len(opt['gpu_ids']) # or torch.cuda.device_count()
         opt['world_size'] = ngpus_per_node
-        opt['init_method'] = 'tcp://127.0.0.1:'+ args.port 
+        opt['init_method'] = 'tcp://127.0.0.1:'+ args.port
         mp.spawn(main_worker, nprocs=ngpus_per_node, args=(ngpus_per_node, opt))
     else:
-        opt['world_size'] = 1 
+        opt['world_size'] = 1
         main_worker(0, 1, opt)

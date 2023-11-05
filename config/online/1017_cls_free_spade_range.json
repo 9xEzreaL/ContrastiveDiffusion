@@ -1,0 +1,147 @@
+{
+    "name": "pain",
+    "gpu_ids": [0,1,2,3],
+    "seed" : -1,
+    "finetune_norm": false,
+
+    "path": {
+        "base_dir": "/workspace/Palette/logs",
+        "code": "code",
+        "tb_logger": "tb_logger",
+        "results": "results",
+        "checkpoint": "checkpoint",
+        "resume_state": null,
+        "exp_name": "1017-spade-free-bp-fixh-range"
+    },
+
+    "datasets": {
+        "train": {
+            "which_dataset": {
+                "name": ["data.prev_spade_free_range_dataset", "PainDataset"],
+                "args":{
+                    "data_root": ["/workspace/Data/full/full/bp/*"],
+                    "data_len": -1,
+                    "mask_config": {
+                        "mask_mode": "hybrid"
+                    }
+                }
+            },
+            "dataloader":{
+                "validation_split": 16,
+                "args":{
+                    "batch_size": 4,
+                    "num_workers": 4,
+                    "shuffle": true,
+                    "pin_memory": true,
+                    "drop_last": true
+                },
+                "val_args":{
+                    "batch_size": 4,
+                    "num_workers": 4,
+                    "shuffle": false,
+                    "pin_memory": true,
+                    "drop_last": false
+                }
+            }
+        },
+        "test": {
+            "which_dataset": {
+                "name": "PainDataset",
+                "args":{
+                    "data_root": "/media/ziyi/Dataset/OAI_pain/full/a/a/*",
+                    "mask_config": {
+                        "mask_mode": "hybrid"
+                    }
+                }
+            },
+            "dataloader":{
+                "args":{
+                    "batch_size": 8,
+                    "num_workers": 4,
+                    "pin_memory": true
+                }
+            }
+        }
+    },
+
+    "model": {
+        "which_model": {
+            "name": ["models.prev_seg_guided_model_free", "Palette"],
+            "args": {
+                "sample_num": 8,
+                "task": "inpainting",
+                "ema_scheduler": {
+                    "ema_start": 1,
+                    "ema_iter": 1,
+                    "ema_decay": 0.9999
+                },
+                "optimizers": [
+                    { "lr": 5e-5, "weight_decay": 0}
+                ]
+            }
+        },
+        "which_networks": [
+            {
+                "name": ["models.prev_seg_guided_network_free", "Network"],
+                "args": {
+                    "init_type": "kaiming",
+                    "module_name": "prev_spade_EnD_diffusion_free",
+                    "unet": {
+                        "in_channel": 2,
+                        "out_channel": 1,
+                        "inner_channel": 32,
+                        "channel_mults": [
+                            1,
+                            2,
+                            4,
+                            8
+                        ],
+                        "attn_res": [
+                            16
+                        ],
+                        "num_head_channels": 16,
+                        "res_blocks": 2,
+                        "dropout": 0.2,
+                        "image_size": 256
+                    },
+                    "beta_schedule": {
+                        "train": {
+                            "schedule": "cosine",
+                            "n_timestep": 2000,
+                            "linear_start": 1e-6,
+                            "linear_end": 0.01
+                        },
+                        "test": {
+                            "schedule": "cosine",
+                            "n_timestep": 2000,
+                            "linear_start": 1e-6,
+                            "linear_end": 0.01
+                        }
+                    }
+                }
+            }
+        ],
+        "which_losses": [
+            "hybrid_loss"
+        ],
+        "which_metrics": [
+            "mae"
+        ]
+    },
+
+    "train": {
+        "n_epoch": 1e8,
+        "n_iter": 1e8,
+        "val_epoch": 15,
+        "save_checkpoint_epoch": 15,
+        "log_iter": 1e3,
+        "tensorboard" : true
+    },
+
+    "debug": {
+        "val_epoch": 1,
+        "save_checkpoint_epoch": 1,
+        "log_iter": 2,
+        "debug_split": 50
+    }
+}

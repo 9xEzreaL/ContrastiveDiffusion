@@ -53,7 +53,7 @@ def define_dataset(logger, opt):
     valid_split = dataloder_opt.get('validation_split', 0)    
     
     ''' divide validation dataset, valid_split==0 when phase is test or validation_split is 0. '''
-    if valid_split > 0.0 or 'debug' in opt['name']: 
+    if valid_split > 0.0 or 'debug' in opt['name']:
         if isinstance(valid_split, int):
             assert valid_split < data_len, "Validation set size is configured to be larger than entire dataset."
             valid_len = valid_split

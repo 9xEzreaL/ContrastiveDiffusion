@@ -1,19 +1,29 @@
 import torch.utils.data as data
+import albumentations as A
 from torchvision import transforms
 from PIL import Image
+import cv2
 import os
+import glob
 import torch
 import numpy as np
+import tifffile as tiff
+import random
+import torch.nn as nn
 
-from .util.mask import (bbox2mask, brush_stroke_mask, get_irregular_mask, random_bbox, random_cropping_bbox)
+# from model.unet import Unet
+
+# from .util.mask import (bbox2mask, brush_stroke_mask, get_irregular_mask, random_bbox, random_cropping_bbox)
 
 IMG_EXTENSIONS = [
     '.jpg', '.JPG', '.jpeg', '.JPEG',
     '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP',
 ]
 
+
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
+
 
 def make_dataset(dir):
     if os.path.isfile(dir):
@@ -29,34 +39,67 @@ def make_dataset(dir):
 
     return images
 
+
 def pil_loader(path):
     return Image.open(path).convert('RGB')
 
-class InpaintDataset(data.Dataset):
-    def __init__(self, data_root, mask_config={}, data_len=-1, image_size=[256, 256], loader=pil_loader):
-        imgs = make_dataset(data_root)
+
+def to_8bit(img):
+    img = np.array(img)
+    img = (((img - img.min()) / (img.max() - img.min())) * 255).astype(np.uint8)
+    return img
+
+
+class PainDataset(data.Dataset):
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384]):
+        # images data root
+        imgs = sorted(glob.glob(data_root))
+        self.eff_root = eff_root
+        self.mean_root = mean_root
+        assert len(imgs) >0, f"len of data_root({data_root}) = 0, correct data_root in config file."
+        assert len(glob.glob(os.path.join(eff_root, "*"))) >0, f"len of eff_root = 0, correct eff_root in config file."
+        assert len(glob.glob(os.path.join(mean_root, "*"))) >0, f"len of mean_root = 0, correct mean_root in config file."
+
         if data_len > 0:
             self.imgs = imgs[:int(data_len)]
         else:
-            self.imgs = imgs
-        self.tfs = transforms.Compose([
-                transforms.Resize((image_size[0], image_size[1])),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5, 0.5])
+            self.imgs = imgs[:]
+        self.tfs = A.Compose([
+            A.Resize(width=image_size[0], height=image_size[1]),
         ])
-        self.loader = loader
-        self.mask_config = mask_config
         self.mask_mode = self.mask_config['mask_mode']
         self.image_size = image_size
+
+        self.model = torch.load('submodels/80.pth', map_location='cpu').eval()
+        # First blur kernal for effusion
+        self.kernal_size = 13
+        self.conv = nn.Conv2d(1,1,self.kernal_size,1,self.kernal_size//2)
+        self.conv.weight = nn.Parameter(torch.ones(1, 1, self.kernal_size, self.kernal_size))
+        self.conv.bias = nn.Parameter(torch.Tensor([0]))
+
+        # Second blur kernal for mean
+        self.kernal_size_2 = 13
+        self.conv_2 = nn.Conv2d(1,1,self.kernal_size_2,1,self.kernal_size_2//2)
+        self.conv_2.weight = nn.Parameter(torch.ones(1, 1, self.kernal_size_2, self.kernal_size_2))
+        self.conv_2.bias = nn.Parameter(torch.Tensor([0]))
 
     def __getitem__(self, index):
         ret = {}
         path = self.imgs[index]
-        img = self.tfs(self.loader(path))
-        mask = self.get_mask()
-        cond_image = img*(1. - mask) + mask*torch.randn_like(img)
-        mask_img = img*(1. - mask) + mask
+        id = path.split("/")[-1]
 
+        img = tiff.imread(path)
+        img = (img - img.min()) / (img.max() - img.min())
+        img = (img - 0.5) / 0.5
+
+        transformed = self.tfs(image=img)
+        img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
+        mask = self.get_mask_from_eff_mean(tiff.imread(os.path.join(self.eff_root, id)),
+                                   tiff.imread(os.path.join(self.mean_root, id))
+                                   )
+        mask = torch.unsqueeze(mask, 0)
+        cond_image = img * (1. - mask) + mask * torch.randn_like(img)
+        mask_img = img * (1. - mask) + mask
         ret['gt_image'] = img
         ret['cond_image'] = cond_image
         ret['mask_image'] = mask_img
@@ -67,110 +110,48 @@ class InpaintDataset(data.Dataset):
     def __len__(self):
         return len(self.imgs)
 
-    def get_mask(self):
-        if self.mask_mode == 'bbox':
-            mask = bbox2mask(self.image_size, random_bbox())
-        elif self.mask_mode == 'center':
-            h, w = self.image_size
-            mask = bbox2mask(self.image_size, (h//4, w//4, h//2, w//2))
-        elif self.mask_mode == 'irregular':
-            mask = get_irregular_mask(self.image_size)
-        elif self.mask_mode == 'free_form':
-            mask = brush_stroke_mask(self.image_size)
-        elif self.mask_mode == 'hybrid':
-            regular_mask = bbox2mask(self.image_size, random_bbox())
-            irregular_mask = brush_stroke_mask(self.image_size, )
-            mask = regular_mask | irregular_mask
-        elif self.mask_mode == 'file':
-            pass
+    def get_mask_from_eff_mean(self, mask, mask_2=None, img=None):
+        threshold = 0
+
+        mask = self.conv(torch.Tensor(mask).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
+
+        mask = np.array(mask > threshold).astype(np.uint8)
+        mask = torch.Tensor(mask)
+        if img is not None:
+            img = torch.unsqueeze(img, 0)
+            pred = self.model(img)
+            pred = torch.argmax(pred, 1, True)
+            one_pred = (pred > 0).type(torch.uint8)
+
+        if mask_2 is not None:
+            threshold = 0.06 * self.kernal_size_2 * self.kernal_size_2
+            mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
+            mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
+            mask_2 = torch.Tensor(mask_2)
+            mask += mask_2
+            mask = np.array(mask > 0).astype(np.uint8)
+            mask = torch.Tensor(mask)
+
+            if img is not None:
+                tmp = mask.type(torch.float32) - one_pred.type(torch.float32)
+                masked_outside = (tmp > 0).type(torch.uint8) * torch.randn_like(img) + (1 - one_pred) * img
+                masked_inside = one_pred * img + one_pred * (mask_2 > 0).type(torch.uint8) * torch.randn_like(img)
+
+        if img is not None:
+            return mask, masked_inside, masked_outside, pred
         else:
-            raise NotImplementedError(
-                f'Mask mode {self.mask_mode} has not been implemented.')
-        return torch.from_numpy(mask).permute(2,0,1)
+            return mask
 
 
-class UncroppingDataset(data.Dataset):
-    def __init__(self, data_root, mask_config={}, data_len=-1, image_size=[256, 256], loader=pil_loader):
-        imgs = make_dataset(data_root)
-        if data_len > 0:
-            self.imgs = imgs[:int(data_len)]
-        else:
-            self.imgs = imgs
-        self.tfs = transforms.Compose([
-                transforms.Resize((image_size[0], image_size[1])),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5, 0.5])
-        ])
-        self.loader = loader
-        self.mask_config = mask_config
-        self.mask_mode = self.mask_config['mask_mode']
-        self.image_size = image_size
-
-    def __getitem__(self, index):
-        ret = {}
-        path = self.imgs[index]
-        img = self.tfs(self.loader(path))
-        mask = self.get_mask()
-        cond_image = img*(1. - mask) + mask*torch.randn_like(img)
-        mask_img = img*(1. - mask) + mask
-
-        ret['gt_image'] = img
-        ret['cond_image'] = cond_image
-        ret['mask_image'] = mask_img
-        ret['mask'] = mask
-        ret['path'] = path.rsplit("/")[-1].rsplit("\\")[-1]
-        return ret
-
-    def __len__(self):
-        return len(self.imgs)
-
-    def get_mask(self):
-        if self.mask_mode == 'manual':
-            mask = bbox2mask(self.image_size, self.mask_config['shape'])
-        elif self.mask_mode == 'fourdirection' or self.mask_mode == 'onedirection':
-            mask = bbox2mask(self.image_size, random_cropping_bbox(mask_mode=self.mask_mode))
-        elif self.mask_mode == 'hybrid':
-            if np.random.randint(0,2)<1:
-                mask = bbox2mask(self.image_size, random_cropping_bbox(mask_mode='onedirection'))
-            else:
-                mask = bbox2mask(self.image_size, random_cropping_bbox(mask_mode='fourdirection'))
-        elif self.mask_mode == 'file':
-            pass
-        else:
-            raise NotImplementedError(
-                f'Mask mode {self.mask_mode} has not been implemented.')
-        return torch.from_numpy(mask).permute(2,0,1)
 
 
-class ColorizationDataset(data.Dataset):
-    def __init__(self, data_root, data_flist, data_len=-1, image_size=[224, 224], loader=pil_loader):
-        self.data_root = data_root
-        flist = make_dataset(data_flist)
-        if data_len > 0:
-            self.flist = flist[:int(data_len)]
-        else:
-            self.flist = flist
-        self.tfs = transforms.Compose([
-                transforms.Resize((image_size[0], image_size[1])),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5,0.5, 0.5])
-        ])
-        self.loader = loader
-        self.image_size = image_size
+if __name__ == "__main__":
+    train_dataset = PainDataset("/media/ziyi/Dataset/OAI_pain/full/bp/*", mask_config={"mask_mode": "hybrid"})
 
-    def __getitem__(self, index):
-        ret = {}
-        file_name = str(self.flist[index]).zfill(5) + '.png'
-
-        img = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'color', file_name)))
-        cond_image = self.tfs(self.loader('{}/{}/{}'.format(self.data_root, 'gray', file_name)))
-
-        ret['gt_image'] = img
-        ret['cond_image'] = cond_image
-        ret['path'] = file_name
-        return ret
-
-    def __len__(self):
-        return len(self.flist)
-
-
+    train_dataloader = data.DataLoader(dataset=train_dataset, batch_size=4,
+                                       num_workers=10, drop_last=True)
+    for i in train_dataloader:
+        # print(i["gt_image"].shape, i["gt_image"].max(), i["gt_image"].min())
+        # print(i["cond_image"].shape)
+        # print(i["mask_image"].shape)
+        assert 0

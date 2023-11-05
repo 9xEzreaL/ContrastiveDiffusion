@@ -4,7 +4,9 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 import torch.utils.data
 
+import lpips
 from torchvision.models.inception import inception_v3
+from pytorch_msssim import ssim, ms_ssim, SSIM, MS_SSIM
 
 import numpy as np
 from scipy.stats import entropy
@@ -73,3 +75,81 @@ def inception_score(imgs, cuda=True, batch_size=32, resize=False, splits=1):
         split_scores.append(np.exp(np.mean(scores)))
 
     return np.mean(split_scores), np.std(split_scores)
+
+
+def ssim_score(inf_imgs, gen_imgs, batch_size=32, resize=False, splits=1):
+    """Computes the inception score of the generated images imgs
+
+    imgs -- Torch dataset of (3xHxW) numpy images normalized in the range [-1, 1]
+    cuda -- whether or not to run on GPU
+    batch_size -- batch size for feeding into Inception v3
+    splits -- number of splits
+    """
+    N = len(inf_imgs)
+    n = len(gen_imgs)
+
+    assert batch_size > 0
+    assert N > batch_size
+    assert n == N
+    # Set up dtype
+    dtype = torch.FloatTensor
+
+    # Set up dataloader
+    inf_dataloader = torch.utils.data.DataLoader(inf_imgs, batch_size=batch_size)
+    gen_dataloader = torch.utils.data.DataLoader(gen_imgs, batch_size=batch_size)
+
+    ssim_score = []
+    ms_ssim_score = []
+    for i, (inf_img, gen_img) in enumerate(zip(inf_dataloader, gen_dataloader)):
+        inf_img = inf_img.type(dtype)
+        gen_img = gen_img.type(dtype)
+        if inf_img.min() < 0:
+            inf_img = (inf_img + 1) / 2
+        if gen_img.min() < 0:
+            gen_img = (gen_img + 1) / 2
+        ssim_val = ssim(inf_img, gen_img, data_range=1, size_average=False, nonnegative_ssim=True)
+        ms_ssim_val = ms_ssim(inf_img, gen_img, data_range=1, size_average=False)
+
+        ssim_score.append(np.array(ssim_val))
+        ms_ssim_score.append(np.array(ms_ssim_val))
+
+    ssim_score = np.concatenate(ssim_score, 0)
+    ms_ssim_score = np.concatenate(ms_ssim_score, 0)
+
+    return np.mean(ssim_score), np.mean(ms_ssim_score)
+
+
+def lpips_score(inf_imgs, gen_imgs, batch_size=32, resize=False, splits=1):
+    """Computes the inception score of the generated images imgs
+
+    imgs -- Torch dataset of (3xHxW) numpy images normalized in the range [-1, 1]
+    cuda -- whether or not to run on GPU
+    batch_size -- batch size for feeding into Inception v3
+    splits -- number of splits
+    """
+    N = len(inf_imgs)
+    n = len(gen_imgs)
+
+    assert batch_size > 0
+    assert N > batch_size
+    assert n == N
+    # Set up dtype
+    dtype = torch.FloatTensor
+
+    # Set up dataloader
+    inf_dataloader = torch.utils.data.DataLoader(inf_imgs, batch_size=batch_size)
+    gen_dataloader = torch.utils.data.DataLoader(gen_imgs, batch_size=batch_size)
+
+    lpips_score = []
+    for i, (inf_img, gen_img) in enumerate(zip(inf_dataloader, gen_dataloader)):
+        inf_img = inf_img.type(dtype)
+        gen_img = gen_img.type(dtype)
+
+        loss_fn_lpips = lpips.LPIPS(net='alex')
+        d = loss_fn_lpips(inf_img, gen_img)
+
+        lpips_score.append(d.detach().numpy())
+
+    lpips_score = np.concatenate(lpips_score, 0)
+
+    return np.mean(lpips_score)

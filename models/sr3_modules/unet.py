@@ -249,3 +249,9 @@ def default(val, d):
     if exists(val):
         return val
     return d() if isfunction(d) else d
+
+if __name__=="__main__":
+    model = UNet()
+    dummy_input = torch.rand((5, 6, 64, 64))
+    out = model(dummy_input, torch.long([5]))
+    print(out.shape)

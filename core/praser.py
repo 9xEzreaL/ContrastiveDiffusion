@@ -15,7 +15,6 @@ def init_obj(opt, logger, *args, default_file_name='default file', given_module=
     if opt is None or len(opt)<1:
         logger.info('Option is None when initialize {}'.format(init_type))
         return None
-    
     ''' default format is dict with name key '''
     if isinstance(opt, str):
         opt = {'name': opt}
@@ -32,15 +31,14 @@ def init_obj(opt, logger, *args, default_file_name='default file', given_module=
             module = given_module
         else:
             module = importlib.import_module(file_name)
-        
         attr = getattr(module, class_name)
         kwargs = opt.get('args', {})
         kwargs.update(modify_kwargs)
         ''' import class or function with args '''
-        if isinstance(attr, type): 
+        if isinstance(attr, type):
             ret = attr(*args, **kwargs)
             ret.__name__  = ret.__class__.__name__
-        elif isinstance(attr, FunctionType): 
+        elif isinstance(attr, FunctionType):
             ret = partial(attr, *args, **kwargs)
             ret.__name__  = attr.__name__
             # ret = attr
@@ -123,8 +121,9 @@ def parse(args):
     else:
         opt['name'] = '{}_{}'.format(opt['phase'], opt['name'])
 
+
     ''' set log directory '''
-    experiments_root = os.path.join(opt['path']['base_dir'], '{}_{}'.format(opt['name'], get_timestamp()))
+    experiments_root = os.path.join(opt['path']['base_dir'], '{}'.format(opt['path']['exp_name']))
     mkdirs(experiments_root)
 
     ''' save json '''

@@ -4,6 +4,7 @@ import importlib
 from datetime import datetime
 import logging
 import pandas as pd
+import tifffile as tiff
 
 import core.util as Util
 
@@ -98,7 +99,7 @@ class VisualWriter():
         self.epoch = epoch
         self.iter = iter
 
-    def save_images(self, results):
+    def save_images(self, results, running_time=1):
         result_path = os.path.join(self.result_dir, self.phase)
         os.makedirs(result_path, exist_ok=True)
         result_path = os.path.join(result_path, str(self.epoch))
@@ -108,8 +109,12 @@ class VisualWriter():
         try:
             names = results['name']
             outputs = Util.postprocess(results['result'])
-            for i in range(len(names)): 
-                Image.fromarray(outputs[i]).save(os.path.join(result_path, names[i]))
+            for i in range(len(names)):
+                info = names[i].split('_', 1)
+                os.makedirs(os.path.join(result_path, str(running_time), info[0]), exist_ok=True)
+                tiff.imwrite(os.path.join(result_path, str(running_time), info[0], info[1]), outputs[i])
+                # Image.fromarray(outputs[i]).save(os.path.join(result_path, str(running_time), info[0], info[1]))
+
         except:
             raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
 
