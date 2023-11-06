@@ -143,7 +143,10 @@ def parse(args):
     ''' code backup ''' 
     for name in os.listdir('.'):
         if name in ['config', 'models', 'core', 'slurm', 'data']:
-            shutil.copytree(name, os.path.join(opt['path']['code'], name), ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
+            try:
+                shutil.copytree(name, os.path.join(opt['path']['code'], name), ignore=shutil.ignore_patterns("*.pyc", "__pycache__"))
+            except:
+                print("Warning folder exist, just make sure that you are running correct experiment name.")
         if '.py' in name or '.sh' in name:
             shutil.copy(name, opt['path']['code'])
     return dict_to_nonedict(opt)

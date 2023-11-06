@@ -64,7 +64,6 @@ class PainDataset(data.Dataset):
         self.tfs = A.Compose([
             A.Resize(width=image_size[0], height=image_size[1]),
         ])
-        self.mask_mode = self.mask_config['mask_mode']
         self.image_size = image_size
 
         self.model = torch.load('submodels/atten_0706.pth', map_location='cpu').eval()
@@ -85,6 +84,7 @@ class PainDataset(data.Dataset):
     def __getitem__(self, index):
         ret = {}
         path = self.imgs[index]
+        id = path.split("/")[-1]
         self.path = path
         slice = path.split('_')[-1].split('.')[0]
         c_feature = self._get_cls_free_feature(path.replace("/ap/", "/bp/"), slice).detach().cpu().squeeze().numpy()
@@ -104,8 +104,8 @@ class PainDataset(data.Dataset):
         transformed_prev = self.tfs(image=prev_img)
         img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
         prev_img = torch.unsqueeze(torch.Tensor(transformed_prev["image"]), 0)
-        mask, one_hot_pred = self.get_mask_from_eff_mean(tiff.imread(path.replace('/ap/', '/apeff/').replace('bp', 'apeff')), # .replace('bp', 'apeff/apeff').replace('/ap/', '/apeff/')
-                                         tiff.imread(path.replace('bp', 'apmean_102323').replace('/ap/', '/apmean_102323/')),
+        mask, one_hot_pred = self.get_mask_from_eff_mean(tiff.imread(os.path.join(self.eff_root, id)), # .replace('bp', 'apeff/apeff').replace('/ap/', '/apeff/')
+                                         # tiff.imread(os.path.join(self.mean_root, id)),
                                          img=img
                                         )
         mask = torch.unsqueeze(mask, 0)
