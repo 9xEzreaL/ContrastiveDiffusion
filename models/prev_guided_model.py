@@ -219,6 +219,25 @@ class Palette(BaseModel):
         for key, value in test_log.items():
             self.logger.info('{:5s}: {}\t'.format(str(key), value))
 
+    def get_test_result(self, phase_data):
+        self.netG.eval()
+        with torch.no_grad():
+            self.set_input(phase_data)
+            if self.opt['distributed']:
+                self.output, self.visuals = self.netG.module.restoration(self.cond_image, y_t=self.cond_image,
+                                                                         y_0=self.gt_image, mask=self.mask,
+                                                                         sample_num=self.sample_num,
+                                                                         y_prev=self.prev_image,
+                                                                         slice=self.slice
+                                                                         )
+            else:
+                self.output, self.visuals = self.netG.restoration(self.cond_image, y_t=self.cond_image,
+                                                                  y_0=self.gt_image, mask=self.mask,
+                                                                  sample_num=self.sample_num,
+                                                                  y_prev=self.prev_image,
+                                                                  slice=self.slice)
+        return self.output
+
     def load_networks(self):
         """ save pretrained model and training state, which only do on GPU 0. """
         if self.opt['distributed']:
