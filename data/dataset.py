@@ -10,6 +10,7 @@ import numpy as np
 import tifffile as tiff
 import random
 import torch.nn as nn
+import torch.nn.functional as F
 
 # from model.unet import Unet
 
@@ -51,7 +52,7 @@ def to_8bit(img):
 
 
 class PainDataset(data.Dataset):
-    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384]):
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train'):
         # images data root
         imgs = sorted(glob.glob(data_root))
         self.eff_root = eff_root
@@ -64,10 +65,15 @@ class PainDataset(data.Dataset):
             self.imgs = imgs[:int(data_len)]
         else:
             self.imgs = imgs[:]
+
+        if mode == 'test':
+            ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
+            # ids = [i * 23 + x for i in [y for y in range(40, 50)] for x in range(23)]
+            self.imgs = [imgs[i] for i in ids]
+
         self.tfs = A.Compose([
             A.Resize(width=image_size[0], height=image_size[1]),
         ])
-        self.mask_mode = self.mask_config['mask_mode']
         self.image_size = image_size
 
         self.model = torch.load('submodels/80.pth', map_location='cpu').eval()
@@ -94,8 +100,9 @@ class PainDataset(data.Dataset):
 
         transformed = self.tfs(image=img)
         img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
-        mask = self.get_mask_from_eff_mean(tiff.imread(os.path.join(self.eff_root, id)),
-                                   tiff.imread(os.path.join(self.mean_root, id))
+        mask, one_hot_pred = self.get_mask_from_eff_mean(tiff.imread(os.path.join(self.eff_root, id)),
+                                   tiff.imread(os.path.join(self.mean_root, id)),
+                                    img=img
                                    )
         mask = torch.unsqueeze(mask, 0)
         cond_image = img * (1. - mask) + mask * torch.randn_like(img)
@@ -108,6 +115,7 @@ class PainDataset(data.Dataset):
         return ret
 
     def __len__(self):
+        print(len(self.imgs))
         return len(self.imgs)
 
     def get_mask_from_eff_mean(self, mask, mask_2=None, img=None):
@@ -121,24 +129,25 @@ class PainDataset(data.Dataset):
             img = torch.unsqueeze(img, 0)
             pred = self.model(img)
             pred = torch.argmax(pred, 1, True)
-            one_pred = (pred > 0).type(torch.uint8)
+            one_hot_pred = F.one_hot(pred, 3)
+            one_hot_pred = torch.permute(one_hot_pred, (0, 4, 2, 3, 1)).squeeze(0).squeeze(-1).to(torch.float)
 
         if mask_2 is not None:
             threshold = 0.06 * self.kernal_size_2 * self.kernal_size_2
             mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
             mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
             mask_2 = torch.Tensor(mask_2)
-            mask += mask_2
+            if 1:
+                mask += mask_2
+            if 0:
+                mask = mask_2 * pred[0, 0, ::]
+                # mask = mask_2 - mask
             mask = np.array(mask > 0).astype(np.uint8)
             mask = torch.Tensor(mask)
 
-            if img is not None:
-                tmp = mask.type(torch.float32) - one_pred.type(torch.float32)
-                masked_outside = (tmp > 0).type(torch.uint8) * torch.randn_like(img) + (1 - one_pred) * img
-                masked_inside = one_pred * img + one_pred * (mask_2 > 0).type(torch.uint8) * torch.randn_like(img)
 
         if img is not None:
-            return mask, masked_inside, masked_outside, pred
+            return mask, one_hot_pred
         else:
             return mask
 

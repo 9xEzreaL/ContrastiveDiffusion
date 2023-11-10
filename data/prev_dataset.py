@@ -10,6 +10,7 @@ import numpy as np
 import tifffile as tiff
 import random
 import torch.nn as nn
+import torch.nn.functional as F
 
 # from model.unet import Unet
 
@@ -51,10 +52,15 @@ def to_8bit(img):
 
 
 class PainDataset(data.Dataset):
-    def __init__(self, data_root, mask_config={}, data_len=-1, image_size=[384, 384], loader=pil_loader, mode='train'):
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train'):
         imgs = sorted(glob.glob(data_root))  # images data root
-        # ids = [i+x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
-        ids = [i*23+x for i in [y for y in range(50)] for x in range(23)]
+        self.eff_root = eff_root
+        self.mean_root = mean_root
+        assert len(imgs) >0, f"len of data_root({data_root}) = 0, correct data_root in config file."
+        assert len(glob.glob(os.path.join(eff_root, "*"))) >0, f"len of eff_root = 0, correct eff_root in config file."
+        assert len(glob.glob(os.path.join(mean_root, "*"))) >0, f"len of mean_root = 0, correct mean_root in config file."
+        ids = [i+x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
+        # ids = [i*23+x for i in [y for y in range(50)] for x in range(23)]
 
         if data_len > 0:
             self.imgs = imgs[:int(data_len)]
@@ -68,12 +74,10 @@ class PainDataset(data.Dataset):
             A.Resize(width=image_size[0], height=image_size[1]),
             # A.ToTensor()
         ])
-        self.loader = loader
-        self.mask_config = mask_config
-        self.mask_mode = self.mask_config['mask_mode']
         self.image_size = image_size
 
         # self.model = torch.load('submodels/80.pth', map_location='cpu').eval()
+        self.model = torch.load('submodels/atten_0706.pth', map_location='cpu').eval()
         self.kernal_size = 13
         self.conv = nn.Conv2d(1,1,self.kernal_size,1,self.kernal_size//2)
         self.conv.weight = nn.Parameter(torch.ones(1, 1, self.kernal_size, self.kernal_size))
@@ -87,6 +91,7 @@ class PainDataset(data.Dataset):
     def __getitem__(self, index):
         ret = {}
         path = self.imgs[index]
+        id = path.split("/")[-1]
         slice = path.split('_')[-1].split('.')[0]
 
         img = tiff.imread(path)
@@ -105,12 +110,12 @@ class PainDataset(data.Dataset):
         transformed_prev = self.tfs(image=prev_img)
         img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
         prev_img = torch.unsqueeze(torch.Tensor(transformed_prev["image"]), 0)
-        mask = self.transform_mask(tiff.imread(path.replace('bp', 'apeff/apeff').replace('/ap/', '/apeff/')),
-                                   # tiff.imread(path.replace('bp', 'apmean').replace('/ap/', '/apmean/').replace('.', '_100.0.'))
-                                                                        # img
-                                                                        )
+        mask, one_hot_pred = self.get_mask_from_eff_mean(tiff.imread(os.path.join(self.eff_root, id)),
+                                   # tiff.imread(os.path.join(self.mean_root, id)),
+                                    img=img
+                                    )
         mask = torch.unsqueeze(mask, 0)
-        # mask = torch.unsqueeze(self.transform_mask(tiff.imread(path.replace('bp', 'meanA/meanA'))), 0)
+
         cond_image = img * (1. - mask) + mask * torch.randn_like(img)
         mask_img = img * (1. - mask) + mask
         # cond_image = torch.cat([cond_image, masked_inside.squeeze(0), masked_outside.squeeze(0), pred.squeeze(0)], 0) # (4, 384, 384)
@@ -127,7 +132,7 @@ class PainDataset(data.Dataset):
     def __len__(self):
         return len(self.imgs)
 
-    def transform_mask(self, mask, mask_2=None, img=None):
+    def get_mask_from_eff_mean(self, mask, mask_2=None, img=None):
         threshold = 0
 
         mask = self.conv(torch.Tensor(mask).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
@@ -138,7 +143,8 @@ class PainDataset(data.Dataset):
             img = torch.unsqueeze(img, 0)
             pred = self.model(img)
             pred = torch.argmax(pred, 1, True)
-            one_pred = (pred > 0).type(torch.uint8)
+            one_hot_pred = F.one_hot(pred, 3)
+            one_hot_pred = torch.permute(one_hot_pred, (0, 4, 2, 3, 1)).squeeze(0).squeeze(-1).to(torch.float)
 
         if mask_2 is not None:
             random_float = 0.06
@@ -147,20 +153,15 @@ class PainDataset(data.Dataset):
             mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
             mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
             mask_2 = torch.Tensor(mask_2)
-            # mask += mask_2
-            mask = mask_2 - mask
+            if 0:
+                mask += mask_2
+            if 1:
+                mask = mask_2 * pred[0,0,::]
+                # mask = mask_2 - mask
             mask = np.array(mask > 0).astype(np.uint8)
             mask = torch.Tensor(mask)
 
-            if img is not None:
-                tmp = mask.type(torch.float32) - one_pred.type(torch.float32)
-                masked_outside = (tmp > 0).type(torch.uint8) * torch.randn_like(img) + (1 - one_pred) * img
-                masked_inside = one_pred * img + one_pred * (mask_2 > 0).type(torch.uint8) * torch.randn_like(img)
-            # tiff.imwrite('img.tif', to_8bit(img))
-            # tiff.imwrite('pred.tif', to_8bit(pred))
-            # tiff.imwrite('see.tif', to_8bit(masked_inside))
-            # tiff.imwrite('seeee.tif', to_8bit(masked_outside))
         if img is not None:
-            return mask, masked_inside, masked_outside, pred
+            return mask, one_hot_pred
         else:
             return mask

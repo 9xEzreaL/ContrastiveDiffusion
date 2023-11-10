@@ -100,7 +100,7 @@ class Network(BaseNetwork):
         assert self.num_timesteps > sample_num, 'num_timesteps must greater than sample_num'
         sample_inter = (self.num_timesteps // sample_num)
 
-        y_t = default(torch.randn_like(y_cond[:, 0:1, ::]), lambda: torch.randn_like(y_cond[:, 0:1, ::]))
+        y_t = default(y_cond[:, 0:1, ::], lambda: torch.randn_like(y_cond[:, 0:1, ::]))
 
         ret_arr = y_t
         for i in tqdm(reversed(range(0, self.num_timesteps)), desc='sampling loop time step', total=self.num_timesteps):

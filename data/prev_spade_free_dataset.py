@@ -88,6 +88,7 @@ class PainDataset(data.Dataset):
         self.path = path
         slice = path.split('_')[-1].split('.')[0]
         c_feature = self._get_cls_free_feature(path.replace("/ap/", "/bp/"), slice).detach().cpu().squeeze().numpy()
+        # c_feature = self._get_cls_free_feature(path, slice).detach().cpu().squeeze().numpy()
 
         img = tiff.imread(path)
         img = (img - img.min()) / (img.max() - img.min())
@@ -105,7 +106,7 @@ class PainDataset(data.Dataset):
         img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
         prev_img = torch.unsqueeze(torch.Tensor(transformed_prev["image"]), 0)
         mask, one_hot_pred = self.get_mask_from_eff_mean(tiff.imread(os.path.join(self.eff_root, id)), # .replace('bp', 'apeff/apeff').replace('/ap/', '/apeff/')
-                                         # tiff.imread(os.path.join(self.mean_root, id)),
+                                         tiff.imread(os.path.join(self.mean_root, id)),
                                          img=img
                                         )
         mask = torch.unsqueeze(mask, 0)
@@ -168,7 +169,7 @@ class PainDataset(data.Dataset):
             if 1:
                 mask += mask_2
             if 0:
-                mask = mask_2 * pred
+                mask = mask_2 * pred[0,0,::]
                 # mask = mask_2 - mask
 
             mask = np.array(mask > 0).astype(np.uint8)
