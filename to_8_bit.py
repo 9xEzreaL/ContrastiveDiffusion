@@ -7,8 +7,9 @@ def to8bit(img):
     img = (img - img.min()) / (img.max() - img.min())
     img = (img * 255).astype(np.uint8)
     return img
-key = 'all'
-path = f'/media/ExtHDD01/logs/0901-cosine-500step-pain-cond/superpain/all/results/0/{key}/*'
+key = 'Process'
+# path = f'/media/ExtHDD01/logs/palette-logs/pain/final/dualE/{key}/*'
+path = f'/media/ExtHDD01/logs/palette-logs/pain/Test10/1005-dualE-SPADE-correct/results/test/0/0/{key}/*'
 os.makedirs(path.replace(key, f'{key}_8bit').replace('*', ''), exist_ok=True)
 
 for i in glob.glob(path):

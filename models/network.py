@@ -15,7 +15,7 @@ class Network(BaseNetwork):
         elif module_name == 'guided_diffusion':
             from .guided_diffusion_modules.unet import UNet
         elif module_name == 'guided_spade_diffusion':
-            from .guided_diffusion_modules.spade_unet import Unet
+            from .guided_diffusion_modules.spade_unet import UNet
 
         self.denoise_fn = UNet(**unet)
         self.beta_schedule = beta_schedule

@@ -99,7 +99,7 @@ class VisualWriter():
         self.epoch = epoch
         self.iter = iter
 
-    def save_images(self, results, running_time=1):
+    def save_images(self, results, running_time=1, datatype="2D"):
         result_path = os.path.join(self.result_dir, self.phase)
         os.makedirs(result_path, exist_ok=True)
         result_path = os.path.join(result_path, str(self.epoch))
@@ -108,7 +108,8 @@ class VisualWriter():
         ''' get names and corresponding images from results[OrderedDict] '''
         try:
             names = results['name']
-            outputs = Util.postprocess(results['result'])
+            outputs = Util.postprocess(results['result'], datatype)
+
             for i in range(len(names)):
                 info = names[i].split('_', 1)
                 os.makedirs(os.path.join(result_path, str(running_time), info[0]), exist_ok=True)
@@ -116,7 +117,27 @@ class VisualWriter():
                 # Image.fromarray(outputs[i]).save(os.path.join(result_path, str(running_time), info[0], info[1]))
 
         except:
-            raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
+            try:
+                if datatype == "3D":
+                    names = results['name']
+
+                    for x in range(23):
+
+                        tmp_result = []
+                        for i in results['result']:
+                            print(i.shape)
+                            if len(i.shape)==4:
+                                tmp_result.append(i[:, x, ::])
+                            elif len(i.shape)==5:
+                                tmp_result.append(i[:, :, x, ::])
+                        outputs = Util.postprocess(tmp_result, datatype)
+
+                        for i in range(len(names)):
+                            info = names[i].split('_', 1)
+                            os.makedirs(os.path.join(result_path, str(running_time), info[0]), exist_ok=True)
+                            tiff.imwrite(os.path.join(result_path, str(running_time), info[0], info[1]+f"_{str(x).zfill(3)}.tif"), outputs[i])
+            except:
+                raise NotImplementedError('You must specify the context of name and result in save_current_results functions of model.')
 
     def close(self):
         self.writer.close()

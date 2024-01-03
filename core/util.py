@@ -6,7 +6,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torchvision.utils import make_grid
 
 
-def tensor2img(tensor, out_type=np.float32, min_max=(-1, 1)):
+def tensor2img(tensor, datatype, out_type=np.float32, min_max=(-1, 1)):
     '''
     Converts a torch Tensor into an image Numpy array
     Input: 4D(B,(3/1),H,W), 3D(C,H,W), or 2D(H,W), any range, RGB channel order
@@ -35,8 +35,8 @@ def tensor2img(tensor, out_type=np.float32, min_max=(-1, 1)):
     # return img_np.squeeze()
     return img_np[0, ::].astype(out_type).squeeze() # img_np[0, ::].astype(out_type).squeeze()
 
-def postprocess(images):
-	return [tensor2img(image) for image in images]
+def postprocess(images, datatype):
+	return [tensor2img(image, datatype) for image in images]
 
 
 def set_seed(seed, gl_seed=0):

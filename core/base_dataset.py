@@ -72,6 +72,7 @@ class PainBaseDataset(data.Dataset):
         img = tiff.imread(path)
         img = (img - img.min()) / (img.max() - img.min())
         img = (img - 0.5) / 0.5
+        img = img.astype(np.float32)
         if len(img.shape)==2:
             img = np.expand_dims(img, 0)
             img = np.concatenate([img, img, img], 0)

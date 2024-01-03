@@ -1,6 +1,6 @@
 {
     "name": "pain",
-    "gpu_ids": [1],
+    "gpu_ids": [0],
     "seed" : -1,
     "finetune_norm": false,
 
@@ -10,8 +10,8 @@
         "tb_logger": "tb_logger",
         "results": "results",
         "checkpoint": "checkpoint",
-        "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained_10/1017-dualE-SPADE-free/checkpoint/105",
-        "exp_name": "Test10/1017-spade-free-correct"
+        "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained_10/dualE-SPADE-free-fix/checkpoint/195",
+        "exp_name": "Test10/1107-spade-free-fix-correct-all-195"
     },
 
     "datasets": {
@@ -49,9 +49,10 @@
                 "name": ["data.prev_spade_free_dataset", "PainDataset"],
                 "args":{
                     "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/ap/*",
-                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff",
-                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apmean_102323",
-                    "mode": "test"
+                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apeff",
+                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apmean_102323",
+                    "mode": "test",
+                    "mask_type": "all" // "all", "mess", "eff"
                 }
             },
             "dataloader":{

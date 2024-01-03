@@ -1,6 +1,6 @@
 {
     "name": "pain", // experiments name
-    "gpu_ids": [2], // gpu ids list, default is single 0
+    "gpu_ids": [0], // gpu ids list, default is single 0
     "seed" : -1, // random seed, seed <0 represents randomization not used
     "finetune_norm": false, // find the parameters to optimize
 
@@ -10,8 +10,8 @@
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained/0502/checkpoint/150",
-        "exp_name": "Test/1002_vanilla_palette/all"
+        "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained_10/vanilla/checkpoint/60",
+        "exp_name": "Test10/50/vanilla-eff"
     },
 
     "datasets": { // train or test
@@ -20,10 +20,7 @@
                 "name": ["data.dataset", "PainDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
                 "args":{ // arguments to initialize dataset
                     "data_root": "/media/ziyi/Dataset/OAI_pain/full/bp/*",
-                    "data_len": 50000,
-                    "mask_config": {
-                        "mask_mode": "hybrid"
-                    }
+                    "data_len": 50000
                 }
             },
             "dataloader":{
@@ -46,12 +43,13 @@
         },
         "test": {
             "which_dataset": {
-                "name": "PainValidationDataset", // import Dataset() class / function(not recommend) from default file
+                "name": "PainDataset", // import Dataset() class / function(not recommend) from default file
                 "args":{
                     "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/ap/*",
-                    "mask_config": {
-                        "mask_mode": "hybrid"
-                    }
+                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apeff",
+                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apmean_102323",
+                    "mode": "test",
+                    "mask_type": "all" // "all", "mess", "eff"
                 }
             },
             "dataloader":{
@@ -116,7 +114,7 @@
                         },
                         "test": {
                             "schedule": "linear",
-                            "n_timestep": 2000,
+                            "n_timestep": 1000,
                             "linear_start": 1e-6,
                             "linear_end": 0.01
                         }

@@ -1,6 +1,6 @@
 {
     "name": "pain", // experiments name
-    "gpu_ids": [0,1,2], // gpu ids list, default is single 0
+    "gpu_ids": [0,1,2,3], // gpu ids list, default is single 0
     "seed" : -1, // random seed, seed <0 represents randomization not used
     "finetune_norm": false, // find the parameters to optimize
 
@@ -13,7 +13,7 @@
         // "resume_state": "/media/ziyi/logs/palette-logs/ddp-first/checkpoint/30",
         "resume_state": "null",
         // "resume_state": null // ex: 100, loading .state  and .pth from given epoch and iteration
-        "exp_name": "000"
+        "exp_name": "vanilla"
     },
 
     "datasets": { // train or test

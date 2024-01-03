@@ -52,11 +52,14 @@ def to_8bit(img):
 
 
 class PainDataset(data.Dataset):
-    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train'):
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train', mask_type="all"):
+        # mask_type should be in ["all", "eff", "mess"]
         # images data root
         imgs = sorted(glob.glob(data_root))
         self.eff_root = eff_root
         self.mean_root = mean_root
+        self.mask_type = mask_type
+        assert mask_type in ["all", "eff", "mess"], f"mask_type should be in [all, eff, mess] but got {mask_type}."
         assert len(imgs) >0, f"len of data_root({data_root}) = 0, correct data_root in config file."
         assert len(glob.glob(os.path.join(eff_root, "*"))) >0, f"len of eff_root = 0, correct eff_root in config file."
         assert len(glob.glob(os.path.join(mean_root, "*"))) >0, f"len of mean_root = 0, correct mean_root in config file."
@@ -67,8 +70,8 @@ class PainDataset(data.Dataset):
             self.imgs = imgs[:]
 
         if mode == 'test':
-            ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
-            # ids = [i * 23 + x for i in [y for y in range(40, 50)] for x in range(23)]
+            # ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
+            ids = [i * 23 + x for i in [y for y in range(50)] for x in range(23)]
             self.imgs = [imgs[i] for i in ids]
 
         self.tfs = A.Compose([
@@ -132,14 +135,14 @@ class PainDataset(data.Dataset):
             one_hot_pred = F.one_hot(pred, 3)
             one_hot_pred = torch.permute(one_hot_pred, (0, 4, 2, 3, 1)).squeeze(0).squeeze(-1).to(torch.float)
 
-        if mask_2 is not None:
+        if self.mask_type in ["all", "mess"]:
             threshold = 0.06 * self.kernal_size_2 * self.kernal_size_2
             mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
             mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
             mask_2 = torch.Tensor(mask_2)
-            if 1:
+            if self.mask_type == "all":
                 mask += mask_2
-            if 0:
+            if self.mask_type == "mess":
                 mask = mask_2 * pred[0, 0, ::]
                 # mask = mask_2 - mask
             mask = np.array(mask > 0).astype(np.uint8)

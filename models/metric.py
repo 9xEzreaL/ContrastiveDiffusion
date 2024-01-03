@@ -3,6 +3,7 @@ from torch import nn
 from torch.autograd import Variable
 from torch.nn import functional as F
 import torch.utils.data
+from core.Metric import Metric
 
 import lpips
 from torchvision.models.inception import inception_v3
@@ -153,3 +154,28 @@ def lpips_score(inf_imgs, gen_imgs, batch_size=32, resize=False, splits=1):
     lpips_score = np.concatenate(lpips_score, 0)
 
     return np.mean(lpips_score)
+
+def dice_iou_cal_culator(inf_imgs, gen_imgs, model, batch_size=6):
+    metric = Metric(num_classes=2)
+    model.eval()
+    N = len(inf_imgs)
+    n = len(gen_imgs)
+
+    assert batch_size > 0
+    assert N > batch_size
+    assert n == N
+
+    # Set up dataloader
+    inf_dataloader = torch.utils.data.DataLoader(inf_imgs, batch_size=batch_size)
+    gen_dataloader = torch.utils.data.DataLoader(gen_imgs, batch_size=batch_size)
+
+    for i, (inf_img, gen_img) in enumerate(zip(inf_dataloader, gen_dataloader)):
+        inf_img = inf_img[:, 0:1, ::].cuda()
+        gen_img = gen_img[:, 0:1, ::].cuda()
+
+        inf_pred = model(inf_img)
+        gen_img = model(gen_img)
+
+        metric.update(inf_pred, gen_img)
+    return metric.dice(), metric.iou()
+
