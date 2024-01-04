@@ -65,8 +65,8 @@ class PainDataset(data.Dataset):
             self.imgs = imgs[:]
 
         if mode == 'test':
-            # ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
-            ids = [i * 23 + x for i in [y for y in range(0, 50)] for x in range(23)]
+            ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
+            # ids = [i * 23 + x for i in [y for y in range(0, 50)] for x in range(23)]
             self.imgs = [imgs[i] for i in ids]
         self.tfs = A.Compose([
             A.Resize(width=image_size[0], height=image_size[1]),

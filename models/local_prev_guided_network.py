@@ -15,12 +15,12 @@ class Network(BaseNetwork):
         elif module_name == 'guided_diffusion':
             from .guided_diffusion_modules.unet import UNet
         elif module_name == 'guided_spade_diffusion':
-            # without SPADE in decoder
-            from .guided_diffusion_modules.spade_unet import UNet
+            # without SPADE in encoder
+            from .guided_diffusion_modules.guided_spade_unet import UNet
         elif module_name == 'prev_guided_diffusion':
             from .guided_diffusion_modules.guided_unet import UNet
         elif module_name == 'prev_spade_EnD_diffusion':
-            # with SPADE in decoder
+            # with SPADE in encoder
             from .guided_diffusion_modules.guided_spade_EnD_unet import UNet
 
         self.denoise_fn = UNet(**unet)

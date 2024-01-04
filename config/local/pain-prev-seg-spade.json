@@ -1,6 +1,6 @@
 {
     "name": "pain", // experiments name
-    "gpu_ids": [3], // gpu ids list, default is single 0
+    "gpu_ids": [1], // gpu ids list, default is single 0
     "seed" : -1, // random seed, seed <0 represents randomization not used
     "finetune_norm": false, // find the parameters to optimize
 
@@ -10,10 +10,11 @@
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-         "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained_10/1005-dualE-SPADE/checkpoint/255",
+        "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained/0925-cos-prev-spade/checkpoint/135",
+//         "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained_10/1005-dualE-SPADE/checkpoint/255",
         // "resume_state": "/workspace/Palette/logs/cond_model/170",
 //        "resume_state": null, // ex: 100, loading .state  and .pth from given epoch and iteration
-        "exp_name": "Test10/0102/dualE-SPADE-eff-255"
+        "exp_name": "Test10/0102/0925-cos-prev-spade-all-135-8case"
     },
 
     "datasets": { // train or test
@@ -88,7 +89,7 @@
                 "name": ["models.local_prev_seg_guided_network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
                 "args": { // arguments to initialize network
                     "init_type": "kaiming", // method can be [normal | xavier| xavier_uniform | kaiming | orthogonal], default is kaiming
-                    "module_name": "prev_spade_EnD_diffusion", // sr3 | guided_diffusion
+                    "module_name": "prev_guided_diffusion", // sr3 | guided_diffusion
                     "unet": {
                         "in_channel": 2,
                         "out_channel": 1,

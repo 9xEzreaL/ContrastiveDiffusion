@@ -17,7 +17,7 @@ class Network(BaseNetwork):
         elif module_name == 'guided_spade_diffusion':
             from .guided_diffusion_modules.spade_unet import UNet
         elif module_name == 'prev_guided_diffusion':
-            from .guided_diffusion_modules.guided_unet import UNet
+            from .guided_diffusion_modules.guided_spade_unet import UNet
         elif module_name == 'prev_seg_guided_diffusion':
             from .guided_diffusion_modules.guided_spade_unet import UNet
         elif module_name == 'prev_spade_EnD_diffusion':
