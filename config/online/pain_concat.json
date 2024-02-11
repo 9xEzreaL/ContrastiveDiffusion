@@ -1,6 +1,6 @@
 {
     "name": "pain", // experiments name
-    "gpu_ids": [4,5,6,7], // gpu ids list, default is single 0
+    "gpu_ids": [0,1,2,3], // gpu ids list, default is single 0
     "seed" : -1, // random seed, seed <0 represents randomization not used
     "finetune_norm": false, // find the parameters to optimize
 
@@ -10,16 +10,14 @@
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        // "resume_state": "/media/ziyi/logs/palette-logs/ddp-first/checkpoint/30",
         "resume_state": "null",
-        // "resume_state": null // ex: 100, loading .state  and .pth from given epoch and iteration
-        "exp_name": "0715_spade_diffusion"
+        "exp_name": "concat"
     },
 
     "datasets": { // train or test
         "train": {
             "which_dataset": {  // import designated dataset using arguments
-                "name": ["data.spade_dataset", "PainWomaskDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
+                "name": ["data.concat_dataset", "PainDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
                 "args":{ // arguments to initialize dataset
                     "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/bp/*",
                     "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff",
@@ -51,7 +49,7 @@
             "which_dataset": {
                 "name": "PainDataset", // import Dataset() class / function(not recommend) from default file
                 "args":{
-                    "data_root": "/workspace/Data/womac4/full/ap/*",
+                    "data_root": "/media/ziyi/Dataset/OAI_pain/full/a/a/*",
                     "mask_config": {
                         "mask_mode": "hybrid"
                     }
@@ -69,7 +67,7 @@
 
     "model": { // networks/metrics/losses/optimizers/lr_schedulers is a list and model is a dict
         "which_model": { // import designated  model(trainer) using arguments
-            "name": ["models.spade_model", "Palette"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
+            "name": ["models.model", "Palette"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
             "args": {
                 "sample_num": 8, // process of each image
                 "task": "inpainting",
@@ -85,12 +83,12 @@
         },
         "which_networks": [ // import designated list of networks using arguments
             {
-                "name": ["models.spade_network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
+                "name": ["models.network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
                 "args": { // arguments to initialize network
                     "init_type": "kaiming", // method can be [normal | xavier| xavier_uniform | kaiming | orthogonal], default is kaiming
-                    "module_name": "guided_spade_diffusion", // sr3 | guided_diffusion
+                    "module_name": "guided_diffusion", // sr3 | guided_diffusion
                     "unet": {
-                        "in_channel": 2,
+                        "in_channel": 5,
                         "out_channel": 1,
                         "inner_channel": 64,
                         "channel_mults": [
@@ -120,8 +118,8 @@
                         "test": {
                             "schedule": "linear",
                             "n_timestep": 2000,
-                            "linear_start": 1e-4,
-                            "linear_end": 0.09
+                            "linear_start": 1e-6,
+                            "linear_end": 0.01
                         }
                     }
                 }

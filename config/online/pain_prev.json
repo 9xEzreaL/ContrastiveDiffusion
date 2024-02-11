@@ -1,31 +1,30 @@
 {
     "name": "pain", // experiments name
-    "gpu_ids": [0,1,2,3], // gpu ids list, default is single 0
+    "gpu_ids": [1], // gpu ids list, default is single 0
     "seed" : -1, // random seed, seed <0 represents randomization not used
     "finetune_norm": false, // find the parameters to optimize
 
     "path": { //set every part file path
-        "base_dir": "/workspace/Palette/logs", // base path for all log except resume_state
+        "base_dir": "/media/ExtHDD01/logs/palette-logs/pain/", // base path for all log except resume_state
         "code": "code", // code backup
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        // "resume_state": "/media/ziyi/logs/palette-logs/ddp-first/checkpoint/30",
-        // "resume_state": "/workspace/Palette/logs/cond_model/170",
-        "resume_state": null, // ex: 100, loading .state  and .pth from given epoch and iteration
-        "exp_name": "1005-cosine-2000step-pain-cond-prevAndSpade-EnD"
+         "resume_state": null,
+        "exp_name": "pain_prev"
     },
 
     "datasets": { // train or test
         "train": {
             "which_dataset": {  // import designated dataset using arguments
-                "name": ["data.prev_seg_spade_dataset", "PainDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
+                "name": ["data.prev_dataset", "PainDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
                 "args":{ // arguments to initialize dataset
-                    "data_root": "/workspace/Data/full/full/bp/*",
-                    "data_len": -1,
-                    "mask_config": {
-                        "mask_mode": "hybrid"
-                    }
+                    "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/bp/*",
+                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff",
+                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apmean_102323",
+                    "mode": "train",
+                    "mask_type": "all", // "all", "mess", "eff"
+                    "threshold": [0.03, 0.15] // training threshols between, [min, max] or single number
                 }
             },
             "dataloader":{
@@ -48,17 +47,18 @@
         },
         "test": {
             "which_dataset": {
-                "name": "PainDataset", // import Dataset() class / function(not recommend) from default file
+                "name": ["data.prev_dataset", "PainDataset"], // import Dataset() class / function(not recommend) from default file
                 "args":{
-                    "data_root": "/media/ziyi/Dataset/OAI_pain/full/a/a/*",
-                    "mask_config": {
-                        "mask_mode": "hybrid"
-                    }
+                    "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/ap/*",
+                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apeff",
+                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apmean_102323",
+                    "mode": "test",
+                    "mask_type": "all" // "all", "mess", "eff"
                 }
             },
             "dataloader":{
                 "args":{
-                    "batch_size": 8,
+                    "batch_size": 1,
                     "num_workers": 4,
                     "pin_memory": true
                 }
@@ -68,7 +68,7 @@
 
     "model": { // networks/metrics/es/optimizers/lr_schedulers is a list and model is a dict
         "which_model": { // import designated  model(trainer) using arguments
-            "name": ["models.prev_seg_guided_model", "Palette"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
+            "name": ["models.prev_guided_model", "Palette"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
             "args": {
                 "sample_num": 8, // process of each image
                 "task": "inpainting",
@@ -84,10 +84,10 @@
         },
         "which_networks": [ // import designated list of networks using arguments
             {
-                "name": ["models.prev_seg_guided_network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
+                "name": ["models.local_prev_guided_network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
                 "args": { // arguments to initialize network
                     "init_type": "kaiming", // method can be [normal | xavier| xavier_uniform | kaiming | orthogonal], default is kaiming
-                    "module_name": "prev_spade_EnD_diffusion", // sr3 | guided_diffusion
+                    "module_name": "prev_guided_diffusion", // sr3 | guided_diffusion
                     "unet": {
                         "in_channel": 2,
                         "out_channel": 1,

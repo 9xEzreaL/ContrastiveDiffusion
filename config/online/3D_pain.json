@@ -11,15 +11,15 @@
         "results": "results",
         "checkpoint": "checkpoint",
         // "resume_state": "/media/ziyi/logs/palette-logs/ddp-first/checkpoint/30",
-        "resume_state": "null",
+        "resume_state": null,
         // "resume_state": null // ex: 100, loading .state  and .pth from given epoch and iteration
-        "exp_name": "0715_spade_diffusion"
+        "exp_name": "3D_model"
     },
 
     "datasets": { // train or test
         "train": {
             "which_dataset": {  // import designated dataset using arguments
-                "name": ["data.spade_dataset", "PainWomaskDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
+                "name": ["data.3D_dataset", "PainDataset"], // import Dataset() class / function(not recommend) from data.dataset.py (default is [data.dataset.py])
                 "args":{ // arguments to initialize dataset
                     "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/bp/*",
                     "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff",
@@ -30,16 +30,16 @@
                 }
             },
             "dataloader":{
-                "validation_split": 12, // percent or number
+                "validation_split": 8, // percent or number
                 "args":{ // arguments to initialize train_dataloader
-                    "batch_size": 3, // batch size in each gpu
+                    "batch_size": 1, // batch size in each gpu
                     "num_workers": 4,
                     "shuffle": true,
                     "pin_memory": true,
                     "drop_last": true
                 },
                 "val_args":{ // arguments to initialize valid_dataloader, will overwrite the parameters in train_dataloader
-                    "batch_size": 3, // batch size in each gpu
+                    "batch_size": 1, // batch size in each gpu
                     "num_workers": 4,
                     "shuffle": false,
                     "pin_memory": true,
@@ -51,7 +51,7 @@
             "which_dataset": {
                 "name": "PainDataset", // import Dataset() class / function(not recommend) from default file
                 "args":{
-                    "data_root": "/workspace/Data/womac4/full/ap/*",
+                    "data_root": "/media/ziyi/Dataset/OAI_pain/full/a/a/*",
                     "mask_config": {
                         "mask_mode": "hybrid"
                     }
@@ -69,7 +69,7 @@
 
     "model": { // networks/metrics/losses/optimizers/lr_schedulers is a list and model is a dict
         "which_model": { // import designated  model(trainer) using arguments
-            "name": ["models.spade_model", "Palette"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
+            "name": ["models.3D_model", "Palette"], // import Model() class / function(not recommend) from models.model.py (default is [models.model.py])
             "args": {
                 "sample_num": 8, // process of each image
                 "task": "inpainting",
@@ -85,10 +85,10 @@
         },
         "which_networks": [ // import designated list of networks using arguments
             {
-                "name": ["models.spade_network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
+                "name": ["models.3D_network", "Network"], // import Network() class / function(not recommend) from default file (default is [models/network.py])
                 "args": { // arguments to initialize network
                     "init_type": "kaiming", // method can be [normal | xavier| xavier_uniform | kaiming | orthogonal], default is kaiming
-                    "module_name": "guided_spade_diffusion", // sr3 | guided_diffusion
+                    "module_name": "3D", // sr3 | guided_diffusion
                     "unet": {
                         "in_channel": 2,
                         "out_channel": 1,
@@ -120,8 +120,8 @@
                         "test": {
                             "schedule": "linear",
                             "n_timestep": 2000,
-                            "linear_start": 1e-4,
-                            "linear_end": 0.09
+                            "linear_start": 1e-6,
+                            "linear_end": 0.01
                         }
                     }
                 }
