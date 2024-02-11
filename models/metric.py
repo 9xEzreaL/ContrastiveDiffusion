@@ -117,7 +117,7 @@ def ssim_score(inf_imgs, gen_imgs, batch_size=32, resize=False, splits=1):
     ssim_score = np.concatenate(ssim_score, 0)
     ms_ssim_score = np.concatenate(ms_ssim_score, 0)
 
-    return np.mean(ssim_score), np.mean(ms_ssim_score)
+    return np.mean(ssim_score), np.mean(ms_ssim_score), np.var(ssim_score), np.var(ms_ssim_score)
 
 
 def lpips_score(inf_imgs, gen_imgs, batch_size=32, resize=False, splits=1):
@@ -153,7 +153,7 @@ def lpips_score(inf_imgs, gen_imgs, batch_size=32, resize=False, splits=1):
 
     lpips_score = np.concatenate(lpips_score, 0)
 
-    return np.mean(lpips_score)
+    return np.mean(lpips_score), np.var(lpips_score)
 
 def dice_iou_cal_culator(inf_imgs, gen_imgs, model, batch_size=6):
     metric = Metric(num_classes=2)

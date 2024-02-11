@@ -12,21 +12,23 @@ if __name__ == '__main__':
     ''' parser configs '''
     args = parser.parse_args()
 
-    fid_score = fid.compute_fid(args.src, args.dst)
-    print('FID: {}'.format(fid_score))
+    # fid_score = fid.compute_fid(args.src, args.dst)
+    # print('FID: {}'.format(fid_score))
 
     is_mean, is_std = inception_score(PainBaseDataset(args.dst), cuda=True, batch_size=8, resize=True, splits=10)
     print('IS:{} {}'.format(is_mean, is_std))
 
-    ssim_score, ms_ssim_score = ssim_score(PainBaseDataset(args.src), PainBaseDataset(args.dst))
+    ssim_score, ms_ssim_score, ssim_var, ms_ssim_var = ssim_score(PainBaseDataset(args.src), PainBaseDataset(args.dst))
     print('SSIM score: {}, MS_SSIM score: {}'.format(ssim_score, ms_ssim_score))
+    print('SSIM var: {}, MS_SSIM var: {}'.format(ssim_var, ms_ssim_var))
 
-    lpips_score = lpips_score(PainBaseDataset(args.src), PainBaseDataset(args.dst))
+    lpips_score, lpips_score_var = lpips_score(PainBaseDataset(args.src), PainBaseDataset(args.dst))
     print('LPIPS score: {}'.format(lpips_score))
+    print('LPIPS score: {}'.format(lpips_score_var))
 
-    tse_bone_model = torch.load("submodels/atten_0706.pth")
-    dice, iou = dice_iou_cal_culator(PainBaseDataset(args.src), PainBaseDataset(args.dst), tse_bone_model)
-    print("dice: {}".format(dice))
-    print("iou: {}".format(iou))
+    # tse_bone_model = torch.load("submodels/atten_0706.pth")
+    # dice, iou = dice_iou_cal_culator(PainBaseDataset(args.src), PainBaseDataset(args.dst), tse_bone_model)
+    # print("dice: {}".format(dice))
+    # print("iou: {}".format(iou))
 
 #

@@ -136,5 +136,4 @@ dmypy.json
 
 # submodels
 submodels/
-config/online/
 to_8_bit.py

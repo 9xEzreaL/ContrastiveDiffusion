@@ -10,10 +10,8 @@
         "tb_logger": "tb_logger", // path of tensorboard logger
         "results": "results",
         "checkpoint": "checkpoint",
-        // "resume_state": "/media/ziyi/logs/palette-logs/ddp-first/checkpoint/30",
         "resume_state": "/media/ExtHDD01/logs/palette-logs/pain/Trained_10/concat/checkpoint/85",
-        // "resume_state": null // ex: 100, loading .state  and .pth from given epoch and iteration
-        "exp_name": "concat-mess"
+        "exp_name": "concat"
     },
 
     "datasets": { // train or test
@@ -51,7 +49,8 @@
                     "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apeff",
                     "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apmean_102323",
                     "mode": "test",
-                    "mask_type": "all" // "all", "mess", "eff"
+                    "mask_type": "all", // "all", "mess", "eff"
+                    "threshold": 0.06
                 }
             },
             "dataloader":{

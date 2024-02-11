@@ -47,11 +47,13 @@
         "test": {
             "which_dataset": {
                 "name": ["data.3D_dataset", "PainDataset"], // import Dataset() class / function(not recommend) from default file
-                "args":{ // arguments to initialize dataset
-                    "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/a/*",
-                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apeff",
-                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/full/apmean_102323",
-                    "mode": "test"
+                "args":{
+                    "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/ap*",
+                    "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff",
+                    "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apmean_102323",
+                    "mode": "test",
+                    "mask_type": "all", // "all", "mess", "eff"
+                    "threshold": 0.06
                 }
             },
             "dataloader":{

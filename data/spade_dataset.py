@@ -51,39 +51,51 @@ def to_8bit(img):
 
 
 class PainWomaskDataset(data.Dataset):
-    def __init__(self, data_root, mask_config={}, data_len=-1, image_size=[384, 384], loader=pil_loader):
-        imgs = sorted(glob.glob(data_root))  # images data root
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train', mask_type="all", threshold=0.06):
+        # mask_type should be in ["all", "eff", "mess"]
+        # images data root
+        imgs = sorted(glob.glob(data_root))
+        self.eff_root = eff_root
+        self.mean_root = mean_root
+        self.mask_type = mask_type
+        self.threshold = threshold
+        assert mask_type in ["all", "eff", "mess"], f"mask_type should be in [all, eff, mess] but got {mask_type}."
+        assert len(imgs) >0, f"len of data_root({data_root}) = 0, correct data_root in config file."
+        assert len(glob.glob(os.path.join(eff_root, "*"))) >0, f"len of eff_root = 0, correct eff_root in config file."
+        assert len(glob.glob(os.path.join(mean_root, "*"))) >0, f"len of mean_root = 0, correct mean_root in config file."
 
         if data_len > 0:
             self.imgs = imgs[:int(data_len)]
         else:
-            ids = [1223, 1245, 2698, 5591, 6909, 9255, 9351, 9528]
-            self.imgs = [imgs[i] for i in range(len(imgs)) if i not in ids]
+            self.imgs = imgs[:]
+
+        if mode == 'test':
+            ids = [i * 23 + x for i in [y for y in range(50)] for x in range(23)]
+            self.imgs = [imgs[i] for i in ids]
 
         self.tfs = A.Compose([
             A.Resize(width=image_size[0], height=image_size[1]),
-            # A.ToTensor()
         ])
-        self.loader = loader
-        self.mask_config = mask_config
-        self.mask_mode = self.mask_config['mask_mode']
         self.image_size = image_size
-        self.model = torch.load('submodels/atten_0706.pth', map_location='cpu').eval()
-        # self.model = torch.load('submodels/atten_0706.pth', map_location='cpu').eval()
 
+        self.model = torch.load('submodels/atten_0706.pth', map_location='cpu').eval()
+        # First blur kernal for effusion
         self.kernal_size = 13
-        self.conv = nn.Conv2d(1, 1, self.kernal_size, 1, self.kernal_size // 2)
+        self.conv = nn.Conv2d(1,1,self.kernal_size,1,self.kernal_size//2)
         self.conv.weight = nn.Parameter(torch.ones(1, 1, self.kernal_size, self.kernal_size))
         self.conv.bias = nn.Parameter(torch.Tensor([0]))
 
+        # Second blur kernal for mean
         self.kernal_size_2 = 13
-        self.conv_2 = nn.Conv2d(1, 1, self.kernal_size_2, 1, self.kernal_size_2 // 2)
+        self.conv_2 = nn.Conv2d(1,1,self.kernal_size_2,1,self.kernal_size_2//2)
         self.conv_2.weight = nn.Parameter(torch.ones(1, 1, self.kernal_size_2, self.kernal_size_2))
         self.conv_2.bias = nn.Parameter(torch.Tensor([0]))
 
     def __getitem__(self, index):
         ret = {}
         path = self.imgs[index]
+        id = path.split("/")[-1]
+
         img = tiff.imread(path)
         img = (img - img.min()) / (img.max() - img.min())
         img = (img - 0.5) / 0.5
@@ -91,57 +103,67 @@ class PainWomaskDataset(data.Dataset):
         transformed = self.tfs(image=img)
         img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
 
-        cond_image = tiff.imread(path.replace('bp', 'ap'))
-        cond_image = (cond_image - cond_image.min()) / (cond_image.max() - cond_image.min())
-        cond_image = (cond_image - 0.5) / 0.5
-        transformed = self.tfs(image=cond_image)
-        cond_image = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
+        # cond_image = tiff.imread(path.replace('bp', 'ap'))
+        # cond_image = (cond_image - cond_image.min()) / (cond_image.max() - cond_image.min())
+        # cond_image = (cond_image - 0.5) / 0.5
+        # transformed = self.tfs(image=cond_image)
+        # cond_image = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
         # print(cond_image.shape)
 
-        mask, cond_image, pred_mask = self.transform_mask(
-            tiff.imread(path.replace('bp', 'apeff/apeff').replace('/ap/', '/apeff/apeff/')),
-            tiff.imread(path.replace('bp', 'apmean').replace('/ap/', '/apmean/').replace('.', '_100.0.')),
-            cond_image)
+        mask, pred_mask = self.get_mask_from_eff_mean(
+            tiff.imread(os.path.join(self.eff_root, id)),
+            tiff.imread(os.path.join(self.mean_root, id)),
+            img=img
+        )
         mask = mask.unsqueeze(0)
+        cond_image = img * (1. - mask) + mask * torch.randn_like(img)
+        mask_img = img * (1. - mask) + mask
 
         ret['mask'] = mask
         ret['gt_image'] = img
         ret['cond_image'] = cond_image
-        ret['mask_image'] = cond_image
+        ret['mask_image'] = mask_img
         ret['path'] = path.rsplit("/")[-1].rsplit("\\")[-1]
         return ret
 
     def __len__(self):
         return len(self.imgs)
 
-    def transform_mask(self, mask, mask_2=None, img=None):
+    def get_mask_from_eff_mean(self, mask, mask_2=None, img=None):
         threshold = 0
+
         mask = self.conv(torch.Tensor(mask).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
 
         mask = np.array(mask > threshold).astype(np.uint8)
         mask = torch.Tensor(mask)
+        if img is not None:
+            img = torch.unsqueeze(img, 0)
+            pred = self.model(img)
+            pred = torch.argmax(pred, 1, True)
+            one_hot_pred = F.one_hot(pred, 3)
+            one_hot_pred = torch.permute(one_hot_pred, (0, 4, 2, 3, 1)).squeeze(0).squeeze(-1).to(torch.float)
 
-        if mask_2 is not None:
-            threshold = 0.07 * self.kernal_size_2 * self.kernal_size_2
+        if self.mask_type in ["all", "mess"]:
+            if isinstance(self.threshold, list):
+                threshold = random.uniform(self.threshold[0], self.threshold[1])
+            else:
+                threshold = self.threshold
+            threshold = threshold * self.kernal_size_2 * self.kernal_size_2
             mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
             mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
             mask_2 = torch.Tensor(mask_2)
-            mask += mask_2
+            if self.mask_type == "all":
+                mask += mask_2
+            if self.mask_type == "mess":
+                mask = mask_2 * pred[0, 0, ::]
             mask = np.array(mask > 0).astype(np.uint8)
             mask = torch.Tensor(mask)
 
-            if img is not None:
-                cond_img = (1 - mask) * img + mask * torch.randn_like(img)
 
-                img = torch.unsqueeze(img, 0)
-                pred = self.model(img)
-                pred = torch.argmax(pred, 1, True)
-
-                # tiff.imwrite('pred.tif', to_8bit(pred))
-                # tiff.imwrite('see.tif', to_8bit(masked_inside))
-                # tiff.imwrite('seeee.tif', to_8bit(masked_outside))
-
-        return torch.ones((img.shape[1], img.shape[2])), cond_img, pred
+        if img is not None:
+            return mask, one_hot_pred
+        else:
+            return mask
 
 if __name__ == "__main__":
     train_dataset = PainWomaskDataset("/media/ziyi/Dataset/OAI_pain/full/ap/*", mask_config={"mask_mode": "hybrid"})

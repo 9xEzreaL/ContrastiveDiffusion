@@ -1,6 +1,6 @@
 {
     "name": "pain", // experiments name
-    "gpu_ids": [0], // gpu ids list, default is single 0
+    "gpu_ids": [1], // gpu ids list, default is single 0
     "seed" : -1, // random seed, seed <0 represents randomization not used
     "finetune_norm": false, // find the parameters to optimize
 
@@ -54,7 +54,7 @@
             },
             "dataloader":{
                 "args":{
-                    "batch_size": 8,
+                    "batch_size": 1,
                     "num_workers": 4,
                     "pin_memory": true
                 }

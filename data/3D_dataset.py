@@ -49,12 +49,13 @@ def to_8bit(img):
 
 
 class PainDataset(data.Dataset):
-    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train', mask_type="all"):
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train', mask_type="all", threshold=0.06):
         # images data root
         imgs = sorted(glob.glob(data_root))
         self.eff_root = eff_root
         self.mean_root = mean_root
         self.mask_type = mask_type
+        self.threshold = threshold
         assert len(imgs) >0, f"len of data_root({data_root}) = 0, correct data_root in config file."
         assert len(glob.glob(os.path.join(eff_root, "*"))) >0, f"len of eff_root = 0, correct eff_root in config file."
         assert len(glob.glob(os.path.join(mean_root, "*"))) >0, f"len of mean_root = 0, correct mean_root in config file."
@@ -65,8 +66,8 @@ class PainDataset(data.Dataset):
             self.imgs = imgs[:]
 
         if mode == 'test':
-            ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
-            # ids = [i * 23 + x for i in [y for y in range(50)] for x in range(23)]
+            # ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
+            ids = [i * 23 + x for i in [y for y in range(50)] for x in range(23)]
             self.imgs = [imgs[i] for i in ids]
 
         self.num_subject = list(set([ID.rsplit("_", 1)[0] for ID in self.imgs]))
@@ -155,7 +156,11 @@ class PainDataset(data.Dataset):
             pred = np.array(torch.argmax(pred, 1, True))
 
         if self.mask_type in ["all", "mess"]:
-            threshold = 0.06 * self.kernal_size_2 * self.kernal_size_2
+            if isinstance(self.threshold, list):
+                threshold = random.uniform(self.threshold[0], self.threshold[1])
+            else:
+                threshold = self.threshold
+            threshold = threshold * self.kernal_size_2 * self.kernal_size_2
             mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
             mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
             mask_2 = torch.Tensor(mask_2)

@@ -12,10 +12,16 @@ Go json file
                 "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff", // eff mask
                 "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apmean_102323", //mean mask
                 "mode": "test",
-                "mask_type": "all" // "all", "mess", "eff"
+                "mask_type": "all", // "all", "mess", "eff"
+                "threshold": [0.03, 0.15] // should be [min, max] in training, 0.06 in testing
             }
         },
-Run 
+Run for training
+```
+   python run.py -c CONFIG -p train
+```
+
+Run for testing
 ```
    python run.py -c CONFIG -p test
 ```
@@ -23,42 +29,60 @@ Run
 1. First model: vanilla palette 
 
 ```
-    CONFIG: config/local/pain.json
+    TRAIN:
+        CONFIG: config/online/pain.json
+    TEST:
+        CONFIG: config/local/pain.json
     
     models-> models.model
 ```
 
 2. Second model: dualE
-```
-    CONFIG: config/local/pain-prev.json
+```    
+    TRAIN:
+        CONFIG: config/online/pain_prev.json
+    TEST:
+        CONFIG: config/local/pain_prev.json
     
     models-> models.local_prev_guided_network
 ```
 
 3. Third model: dualE + SPADE (SPADE in encoder and decoder)
 ```
-    CONFIG: config/local/pain-prev-seg-spade.json
+    TRAIN:
+        CONFIG: config/online/pain_prev_spade_EnD.json
+    TEST:
+        CONFIG: config/local/pain_prev_spade_EnD.json
     
     models-> models.local_prev_seg_guided_network
 ```
 
-4. Forth model: dualE + SPADE + contrastive feeatures (Not performance well)
+4. Forth model: dualE + SPADE (SPADE in encoder)
 ```
-    CONFIG: config/local/prev-seg-spade-cls-free.json
-    
+    TRAIN:
+        CONFIG: config/online/pain_prev_spade.json
+    TEST:
+        CONFIG: config/local/pain_prev_spade.json
+            
     models-> models.local_prev_seg_guided_network_free
 ```
 
 5. Fifth model: concat mask 
 ```
-    CONFIG: config/local/pain-oncat.json
+    TRAIN:
+        CONFIG: config/online/pain_concat.json
+    TEST:
+        CONFIG: config/local/pain_concat.json
     
     models-> models.model
 ```
 
 6. 3D model: instantiate from Med-DDPM
 ```
-    CONFIG: config/local/3D_model.json
+    TRAIN:
+        CONFIG: config/online/3D_model.json
+    TEST:
+        CONFIG: config/local/3D_model.json
     
     models-> models.3D_network
 ```

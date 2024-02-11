@@ -49,11 +49,12 @@ def to_8bit(img):
 
 
 class PainDataset(data.Dataset):
-    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train', mask_type="all"):
+    def __init__(self, data_root, eff_root, mean_root, data_len=-1, image_size=[384, 384], mode='train', mask_type="all", threshold=0.06):
         imgs = sorted(glob.glob(data_root))  # images data root
         self.eff_root = eff_root
         self.mean_root = mean_root
         self.mask_type = mask_type
+        self.threshold = threshold
         assert mask_type in ["all", "eff", "mess"], f"mask_type should be in [all, eff, mess] but got {mask_type}."
         assert len(imgs) >0, f"len of data_root({data_root}) = 0, correct data_root in config file."
         assert len(glob.glob(os.path.join(eff_root, "*"))) >0, f"len of eff_root = 0, correct eff_root in config file."
@@ -65,14 +66,12 @@ class PainDataset(data.Dataset):
             self.imgs = imgs[:]
 
         if mode == 'test':
-            ids = [i + x for i in [1219, 1242, 2691, 5589, 6900, 9246, 9338, 9522] for x in range(23)]
-            # ids = [i * 23 + x for i in [y for y in range(0, 50)] for x in range(23)]
+            ids = [i * 23 + x for i in [y for y in range(50)] for x in range(23)]
             self.imgs = [imgs[i] for i in ids]
+
         self.tfs = A.Compose([
             A.Resize(width=image_size[0], height=image_size[1]),
-            # A.ToTensor()
         ])
-
         self.image_size = image_size
 
         self.model = torch.load('submodels/atten_0706.pth', map_location='cpu').eval()
@@ -108,7 +107,8 @@ class PainDataset(data.Dataset):
         transformed_prev = self.tfs(image=prev_img)
         img = torch.unsqueeze(torch.Tensor(transformed["image"]), 0)
         prev_img = torch.unsqueeze(torch.Tensor(transformed_prev["image"]), 0)
-        mask, one_hot_pred = self.transform_mask(tiff.imread(os.path.join(self.eff_root, id)),
+        mask, one_hot_pred = self.transform_mask(
+                                         tiff.imread(os.path.join(self.eff_root, id)),
                                          tiff.imread(os.path.join(self.mean_root, id)),
                                          img=img
                                         )
@@ -123,6 +123,7 @@ class PainDataset(data.Dataset):
         ret['mask'] = mask
         ret['one_hot_seg'] = one_hot_pred
         ret['slice'] = int(slice)
+        # ret['path'] = str(index//46).zfill(2)+path.rsplit("/")[-1].rsplit("\\")[-1]
         ret['path'] = path.rsplit("/")[-1].rsplit("\\")[-1]
         return ret
 
@@ -144,9 +145,12 @@ class PainDataset(data.Dataset):
             one_hot_pred = torch.permute(one_hot_pred, (0, 4, 2, 3, 1)).squeeze(0).squeeze(-1).to(torch.float)
 
         if self.mask_type in ["all", "mess"]:
-            random_float = 0.03
+            if isinstance(self.threshold, list):
+                threshold = random.uniform(self.threshold[0], self.threshold[1])
+            else:
+                threshold = self.threshold
 
-            threshold = random_float * self.kernal_size_2 * self.kernal_size_2
+            threshold = threshold * self.kernal_size_2 * self.kernal_size_2
             mask_2 = self.conv_2(torch.Tensor(mask_2).unsqueeze(0).unsqueeze(0)).squeeze(0).squeeze(0)
             mask_2 = np.array(mask_2 > threshold).astype(np.uint8)
             mask_2 = torch.Tensor(mask_2)
@@ -154,16 +158,10 @@ class PainDataset(data.Dataset):
                 mask += mask_2
             if self.mask_type == "mess":
                 mask = mask_2 * pred[0, 0, ::]
-            #     mask = mask_2 * pred[0,0,::]
-                # mask = mask_2 - mask
 
             mask = np.array(mask > 0).astype(np.uint8)
             mask = torch.Tensor(mask)
 
-            # tiff.imwrite('img.tif', to_8bit(img))
-            # tiff.imwrite('pred.tif', to_8bit(pred))
-            # tiff.imwrite('see.tif', to_8bit(masked_inside))
-            # tiff.imwrite('seeee.tif', to_8bit(masked_outside))
         if img is not None:
             return mask, one_hot_pred
         else:

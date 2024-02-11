@@ -11,8 +11,6 @@
         "results": "results",
         "checkpoint": "checkpoint",
          "resume_state": "/media/ExtHDD01/logs/palette-logs/Trained_10/vanilla/checkpoint/105",
-//        "resume_state": "null",
-        // "resume_state": null // ex: 100, loading .state  and .pth from given epoch and iteration
         "exp_name": "000"
     },
 
@@ -50,11 +48,12 @@
             "which_dataset": {
                 "name": ["data.dataset", "PainDataset"], // import Dataset() class / function(not recommend) from default file
                 "args":{
-                    "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/a/a/*",
+                    "data_root": "/media/ExtHDD01/Dataset/OAI_pain/full/ap*",
                     "eff_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apeff",
                     "mean_root": "/media/ExtHDD01/Dataset/OAI_pain/full/apmean_102323",
                     "mode": "test",
-                    "mask_type": "all" // "all", "mess", "eff"
+                    "mask_type": "all", // "all", "mess", "eff"
+                    "threshold": 0.06
                 }
             },
             "dataloader":{
